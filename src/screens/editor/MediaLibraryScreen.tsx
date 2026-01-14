@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import DocumentPicker from 'react-native-document-picker';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemeStore } from '../../store/themeStore';
 import { supabase, Tables, Buckets } from '../../config/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { MediaAsset } from '../../types';
 import { Text } from '../../components/Text';
 import { Button } from '../../components/Button';
+import { SubscriptionService, SubscriptionError } from '../../services/subscription.service';
+import { RootStackParamList } from '../../types/navigation';
 
 interface MediaLibraryScreenProps {
   onSelect: (asset: MediaAsset) => void;
@@ -18,6 +22,7 @@ export const MediaLibraryScreen = ({ onSelect, onClose }: MediaLibraryScreenProp
   const { t } = useTranslation();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +61,11 @@ export const MediaLibraryScreen = ({ onSelect, onClose }: MediaLibraryScreenProp
       });
       
       const file = result[0];
+      const fileSize = file.size || 0;
+
+      // Validate subscription and storage before upload
+      await SubscriptionService.canUploadMedia(user.id, fileSize);
+
       setUploading(true);
 
       // 1. Upload file to Supabase Storage
@@ -108,6 +118,15 @@ export const MediaLibraryScreen = ({ onSelect, onClose }: MediaLibraryScreenProp
     } catch (error) {
       if (DocumentPicker.isCancel(error)) {
         // User cancelled
+      } else if (error instanceof SubscriptionError) {
+        Alert.alert(
+          t('common.error'),
+          error.message,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('subscription.upgrade'), onPress: () => navigation.navigate('Subscription') },
+          ]
+        );
       } else {
         Alert.alert(t('common.error'), (error as Error).message);
       }

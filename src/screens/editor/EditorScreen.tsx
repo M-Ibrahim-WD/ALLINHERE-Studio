@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, Dimensions } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Dimensions, Alert } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../../types/navigation';
 import { Timeline } from '../../components/editor/Timeline';
 import { Text } from '../../components/Text';
 import { Button } from '../../components/Button';
 import { useThemeStore } from '../../store/themeStore';
+import { useAuthStore } from '../../store/authStore';
 import { TimelineClip, MediaAsset } from '../../types';
 import { MediaLibraryScreen } from './MediaLibraryScreen';
 import { Modal } from 'react-native';
+import { SubscriptionService, SubscriptionError } from '../../services/subscription.service';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -55,15 +59,47 @@ const MOCK_CLIPS: TimelineClip[] = [
 type EditorScreenRouteProp = RouteProp<RootStackParamList, 'Editor'>;
 
 export const EditorScreen = () => {
+  const { t } = useTranslation();
   const { colors } = useThemeStore();
+  const { user } = useAuthStore();
   const route = useRoute<EditorScreenRouteProp>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { projectId } = route.params;
 
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedClipId, setSelectedClipId] = useState<string | undefined>();
   const [clips, setClips] = useState<TimelineClip[]>(MOCK_CLIPS);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+
+  // Validate subscription status on mount
+  useEffect(() => {
+    const validateAccess = async () => {
+      if (!user) return;
+
+      try {
+        await SubscriptionService.validateBeforeAction(user.id, 'access_editor');
+      } catch (error) {
+        if (error instanceof SubscriptionError) {
+          Alert.alert(
+            t('common.error'),
+            error.message,
+            [
+              {
+                text: t('subscription.upgrade'),
+                onPress: () => {
+                  navigation.replace('Main', { screen: 'Profile' });
+                  // Note: User should navigate to Subscription screen from Profile
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        }
+      }
+    };
+
+    validateAccess();
+  }, [user, navigation, t]);
 
   // Group clips by track
   const tracks = React.useMemo(() => {

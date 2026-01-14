@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
 import { Text } from '../../components/Text';
 import { Button } from '../../components/Button';
 import { useThemeStore } from '../../store/themeStore';
-import { SubscriptionService } from '../../services/subscription.service';
+import { SubscriptionService, SubscriptionError } from '../../services/subscription.service';
 import { useAuthStore } from '../../store/authStore';
 // import { FFmpegKit, ReturnCode } from 'ffmpeg-kit-react-native';
 
@@ -16,7 +17,7 @@ export const ExportScreen = () => {
   const { t } = useTranslation();
   const { colors } = useThemeStore();
   const route = useRoute<ExportScreenRouteProp>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { projectId } = route.params;
   const { user } = useAuthStore();
 
@@ -26,17 +27,22 @@ export const ExportScreen = () => {
   const handleExport = async () => {
     if (!user) return;
 
-    // Check subscription limits
-    const canExport = await SubscriptionService.canExportProject(user.id);
-    if (!canExport) {
-      Alert.alert(
-        t('common.error'),
-        t('trial.expiredMessage'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('subscription.upgrade'), onPress: () => navigation.navigate('Subscription') },
-        ]
-      );
+    try {
+      // Check subscription limits
+      await SubscriptionService.canExportProject(user.id);
+    } catch (error) {
+      if (error instanceof SubscriptionError) {
+        Alert.alert(
+          t('common.error'),
+          error.message,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('subscription.upgrade'), onPress: () => navigation.navigate('Subscription') },
+          ]
+        );
+      } else {
+        Alert.alert(t('common.error'), (error as Error).message);
+      }
       return;
     }
 

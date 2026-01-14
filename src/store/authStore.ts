@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Tables } from '../config/supabase';
 import { User, SubscriptionStatus, SubscriptionPlan } from '../types';
+import { SubscriptionService } from '../services/subscription.service';
 
 interface AuthState {
   user: User | null;
@@ -13,6 +14,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshSubscriptionStatus: () => Promise<void>;
 }
 
 const USER_SESSION_KEY = '@allinhere_user_session';
@@ -168,8 +170,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       set({ user: user as User });
+      await AsyncStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
     } catch (error) {
       console.error('Error refreshing user:', error);
+    }
+  },
+
+  refreshSubscriptionStatus: async () => {
+    const { session } = get();
+    if (!session) return;
+
+    try {
+      // Check and refresh subscription status (will update if trial expired)
+      const user = await SubscriptionService.checkSubscriptionStatus(session.user.id);
+      set({ user });
+      await AsyncStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
+    } catch (error) {
+      console.error('Error refreshing subscription status:', error);
     }
   },
 }));

@@ -10,6 +10,7 @@ import { Button } from '../../components/Button';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { supabase, Tables } from '../../config/supabase';
+import { SubscriptionService, SubscriptionError } from '../../services/subscription.service';
 
 export const CreateScreen = () => {
   const { t } = useTranslation();
@@ -31,6 +32,10 @@ export const CreateScreen = () => {
 
     try {
       setLoading(true);
+
+      // Validate subscription before creating project
+      await SubscriptionService.canCreateProject(user.id);
+
       const { data, error } = await supabase
         .from(Tables.PROJECTS)
         .insert({
@@ -51,7 +56,18 @@ export const CreateScreen = () => {
         navigation.replace('Editor', { projectId: data.id });
       }
     } catch (error) {
-      Alert.alert(t('common.error'), (error as Error).message);
+      if (error instanceof SubscriptionError) {
+        Alert.alert(
+          t('common.error'),
+          error.message,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('subscription.upgrade'), onPress: () => navigation.navigate('Subscription') },
+          ]
+        );
+      } else {
+        Alert.alert(t('common.error'), (error as Error).message);
+      }
     } finally {
       setLoading(false);
     }
