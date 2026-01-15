@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../types/navigation';
+import { ProjectsStackParamList } from '../../types/navigation';
 import { ProjectCard } from '../../components/ProjectCard';
 import { Text } from '../../components/Text';
 import { Button } from '../../components/Button';
@@ -16,7 +16,7 @@ export const ProjectsScreen = () => {
   const { t } = useTranslation();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<ProjectsStackParamList, 'Projects'>>();
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,13 +45,12 @@ export const ProjectsScreen = () => {
   };
 
   const handleProjectPress = (project: Project) => {
-    navigation.navigate('Editor', { projectId: project.id });
+    // This will be used to load a project into the editor store in the future
+    // For now, it does nothing.
   };
 
   const handleCreatePress = () => {
-    // Navigate to Main tab navigator, then to Create screen
-    // @ts-ignore - navigation typing is strict
-    navigation.navigate('Main', { screen: 'Create' });
+    navigation.navigate('CreateProject');
   };
 
   if (loading) {

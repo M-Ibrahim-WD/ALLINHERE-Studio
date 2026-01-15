@@ -8,9 +8,15 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
 };
 
+export type ProjectsStackParamList = {
+  Projects: undefined;
+  CreateProject: undefined;
+  Editor: undefined; // No project ID is needed here for now as we use Zustand
+};
+
 export type MainTabParamList = {
   Home: undefined;
-  Projects: undefined;
+  ProjectsStack: NavigatorScreenParams<ProjectsStackParamList>;
   Create: undefined;
   Camera: undefined;
   Profile: undefined;
